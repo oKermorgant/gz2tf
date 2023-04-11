@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format2.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>ros_gz_world_bridge</name>
+  <version>0.0.1</version>
+  <description>Publish world mesh positions from Gazebo simulation</description>
+  <maintainer email="olivier.kermorgant@ec-nantes.fr">Olivier Kermorgant</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake_ros</buildtool_depend>
+
+  <!-- Fortress (default) -->
+  <depend condition="$ROS_DISTRO == 'humble'">sdformat12</depend>
+  <depend condition="$ROS_DISTRO == 'rolling'">sdformat12</depend>
+  <depend condition="$GZ_VERSION == fortress">sdformat12</depend>
+  <depend condition="$GZ_VERSION == ''">sdformat12</depend>
+
+  <!-- Garden -->
+  <depend condition="$GZ_VERSION == garden">sdformat13</depend>
+
+  <depend>urdf</depend>
+  <depend>rclcpp</depend>
+  <depend>robot_state_publisher</depend>
+  <depend>tf2_ros</depend>
+
+  <build_depend>pluginlib</build_depend>
+  <build_depend>rcutils</build_depend>
+  <build_depend>tinyxml2_vendor</build_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
