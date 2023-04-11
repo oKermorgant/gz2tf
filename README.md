@@ -1,27 +1,17 @@
-# Republish pose on tf
+# Bridge for Gazebo worlds
 
-This packages contains a single node that subscribes to a pose topic.
+This package parses a Gazebo world file and publishes the corresponding poses.
 
-It will simply republish the pose as a transform on `/tf`. If the parent frame is not defined then `world` will be used.
+The whole world is converted to a single URDF published on `/gz_world_bridge/robot_description`.
 
-It can be used to simulate perfect localization (on `/tf`) from a ground truth topic published by a simulator.
+Poses of the models are retrieved from Gazebo topic. They are published on the ROS 2 side either as `tf` or as `PoseStamped`.
+Only the transforms between the world and the root frame of the models is bridged.
+The bridge does not consider internal, non fixed joints. It is up to another bridge to deal with such values (e.g. JointState).
 
-Supported messages are:
-- `geometry_msgs/Pose`
-- `geometry_msgs/PoseStamped`
-- `geometry_msgs/Transform`
-- `geometry_msgs/TransformStamped`
-- `nav_msgs/Odometry`
-- `sensor_msgs/Imu` (assumes null translation)
+Several parameters allow tuning the behavior:
+- `namespace` (default `gz_world_bridge`): namespace of the robot description and pose topic
+- `file`: the path to the world file (relative to Gazebo resource path, if needed)
+- `world`: the content of a world (SDF xml), if `file` is not set
+- `use_static` (default `True`): will consider that `<static>` models are fixed and their positions published on `/tf_static`
+- `use_tf` (default `False`): publish models poses on `/tf`. If `False`, publish the world poses on `/<namespace>/poses` as `PoseStamped`
 
-
-## Parameters
-
-- `topic`: topic to subscribe to (defaults to `pose_gt`)
-- `child_frame`: child frame to be used in tf publisher (defaults to `base_link`)
-- `parent_frame`: parent frame to be used in tf publisher (defaults to `world`)
-
-The frame parameters are only used if the corresponding information is not available in the message itself:
-- `Pose` and `Transform` do not convey any frame
-- `PoseStamped` and `Imu` only convey `child_frame` in the header
-- `TransformStamped` and `Odometry` convey both `child_frame` explicitely and `parent_frame` in the header

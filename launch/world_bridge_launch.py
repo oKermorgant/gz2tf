@@ -5,11 +5,10 @@ def generate_launch_description():
     
     sl = SimpleLauncher()
 
-    world = sl.declare_arg('world', '')
     sl.declare_arg('rviz',True)
 
     # bridge params
-    sl.declare_arg('file','world.world', description = 'File to Gz world')
+    sl.declare_arg('file','some.world', description = 'File to Gz world')
     sl.declare_arg('world','', description = 'Content of Gz world (optional)')
     sl.declare_arg('use_static',True, description = 'Publish <static> models as tf_static')
     sl.declare_arg('use_tf',False, description = 'Bridge poses as /tf instead of separate pose topic')
