@@ -10,13 +10,14 @@
   <buildtool_depend>ament_cmake_ros</buildtool_depend>
 
   <!-- Fortress (default) -->
-  <depend condition="$ROS_DISTRO == 'humble'">sdformat12</depend>
-  <depend condition="$ROS_DISTRO == 'rolling'">sdformat12</depend>
   <depend condition="$GZ_VERSION == fortress">sdformat12</depend>
   <depend condition="$GZ_VERSION == ''">sdformat12</depend>
 
   <!-- Garden -->
   <depend condition="$GZ_VERSION == garden">sdformat13</depend>
+
+  <!-- Harmonic -->
+  <depend condition="$GZ_VERSION == harmonic">sdformat14</depend>
 
   <depend>urdf</depend>
   <depend>rclcpp</depend>
