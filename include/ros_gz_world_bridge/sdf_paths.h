@@ -13,7 +13,7 @@
 namespace ros_gz_world_bridge
 {
 
-namespace gz
+namespace sdf_paths
 {
 
 namespace fs = std::filesystem;
@@ -65,7 +65,7 @@ std::string resolveURI(const std::string &uri, const fs::path &base = "")
   if(fs::path(uri).is_absolute())
     return uri;
 
-  static const auto paths{gz::paths()};
+  static const auto paths{sdf_paths::paths()};
 
   if(fs::path(uri).extension() == ".sdf" || fs::path(uri).extension() == ".world")
   {
@@ -134,7 +134,7 @@ std::string resolveURI(const std::string &uri, const fs::path &base = "")
 
 std::string readWorld(const std::string &path)
 {
-  const auto abs_world{gz::resolveURI(path)};
+  const auto abs_world{sdf_paths::resolveURI(path)};
   if(abs_world.empty())
     return {};
   std::ifstream in(abs_world.c_str());

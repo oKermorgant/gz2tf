@@ -3,13 +3,19 @@
 
 #include <rclcpp/node.hpp>
 #include <robot_state_publisher/robot_state_publisher.hpp>
-#include <ros_gz_world_bridge/sdf_parser.h>
 #include <urdf_parser/urdf_parser.h>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 
+#include <ros_gz_world_bridge/sdf_parser.h>
+
+#ifdef GZ_FORTRESS
 #include <ignition/msgs/pose_v.pb.h>
 #include <ignition/transport/Node.hh>
+#else
+#include <gz/msgs/pose_v.pb.h>
+#include <gz/transport/Node.hh>
+#endif
 
 namespace ros_gz_world_bridge
 {
@@ -27,10 +33,12 @@ public:
   {
     sdf::setFindCallback([&](const std::string &path) -> std::string
     {
-      return gz::resolveURI(path);
+      return sdf_paths::resolveURI(path);
     });
 
-    const auto filename = declare_parameter<std::string>("file", "sydney_regatta.sdf");
+    //const auto filename = declare_parameter<std::string>("file", "sydney_regatta.sdf");
+    const auto filename = declare_parameter<std::string>("file",
+                                                         "/home/olivier/code/libs/ros2/src/maritime/uuv_gazebo_worlds/worlds/mangalia.world");
     auto world = declare_parameter<std::string>("world", "");
     const auto ignored = declare_parameter<std::vector<std::string>>("ignored", {"waves"});
     const auto use_static = declare_parameter("use_static", true);
@@ -44,7 +52,7 @@ public:
     }
 
     if(!filename.empty())
-      world = gz::readWorld(filename);
+      world = sdf_paths::readWorld(filename);
 
     return parseWorldSDF(world, ignored, use_static);
   }
@@ -87,9 +95,9 @@ public:
     }
 
     const auto use_tf = declare_parameter<bool>("use_tf", false);
-    static ::GZ_NS::transport::Node gz_node;
+    static gz::transport::Node gz_node;
 
-    std::function<void(const ::GZ_NS::msgs::Pose_V &)> sub_cb;
+    std::function<void(const gz::msgs::Pose_V &)> sub_cb;
 
     if(use_tf)
     {
@@ -98,7 +106,7 @@ public:
       static TransformStamped tr;
       tr.header.frame_id = "world";
 
-      sub_cb = [&](const ::GZ_NS::msgs::Pose_V &msg)
+      sub_cb = [&](const gz::msgs::Pose_V &msg)
       {
         tr.header.stamp = get_clock()->now();
         for(int i = 0; i < msg.pose_size(); ++i)
@@ -125,7 +133,7 @@ public:
       using PoseStamped = geometry_msgs::msg::PoseStamped;
       static auto pose_pub = create_publisher<PoseStamped>(topic_ns + "/poses", 1);
       static PoseStamped pose;
-      sub_cb = [&](const ::GZ_NS::msgs::Pose_V &msg)
+      sub_cb = [&](const gz::msgs::Pose_V &msg)
       {
         pose.header.stamp = get_clock()->now();
         for(int i = 0; i < msg.pose_size(); ++i)

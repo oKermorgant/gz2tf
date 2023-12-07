@@ -4,11 +4,18 @@
 #include <sdf/Root.hh>
 #include <sdf/World.hh>
 #include <sdf/Link.hh>
-#include <ignition/math/Pose3.hh>
 #include <ros_gz_world_bridge/urdf_export.h>
 #include <ros_gz_world_bridge/sdf_paths.h>
 #include <sdformat_urdf/sdformat_urdf.hpp>
 #include <optional>
+
+#ifdef GZ_FORTRESS
+#include <ignition/math/Pose3.hh>
+namespace gz = ignition;
+#else
+#include <gz/math/Pose3.hh>
+#endif
+
 
 namespace ros_gz_world_bridge
 {
@@ -16,7 +23,7 @@ namespace ros_gz_world_bridge
 struct PlacedModel
 {
   urdf::ModelInterfaceConstSharedPtr urdf;
-  std::optional<ignition::math::Pose3d> pose;
+  std::optional<gz::math::Pose3d> pose;
 };
 
 
@@ -62,7 +69,7 @@ void resolveMeshes(std::vector<std::shared_ptr<LinkElem>> &elems,
       auto mesh = static_cast<urdf::Mesh*>(geom.get());
       previous.push_back({elem->origin, mesh->filename});
 
-      mesh->filename = gz::resolveURI(mesh->filename, sdf_root);
+      mesh->filename = sdf_paths::resolveURI(mesh->filename, sdf_root);
     }
   }
 
@@ -93,7 +100,7 @@ PlacedModel convertModel(sdf::Model sdf_model)
     converted.pose = sdf_model.RawPose();
 
   // remove absolute pose that annoy sdformat_urdf
-  if(sdf_model.RawPose() != ignition::math::Pose3d{})
+  if(sdf_model.RawPose() != gz::math::Pose3d{})
     sdf_model.SetRawPose({});
 
   // add a dummy link for composite models
@@ -116,7 +123,7 @@ PlacedModel convertModel(sdf::Model sdf_model)
   }
 
   // adapt meshes that are relative to this model
-  const auto sdf_root{std::filesystem::path(gz::resolveURI(sdf_model.Uri())).parent_path()};
+  const auto sdf_root{std::filesystem::path(sdf_paths::resolveURI(sdf_model.Uri())).parent_path()};
   for(auto [_,link]: converted.urdf->links_)
   {
     resolveMeshes(link->visual_array, sdf_root);
@@ -146,7 +153,7 @@ DynamicModel regroupModels(const std::vector<PlacedModel> &models, const std::st
     return child;
   };
 
-  const auto addFixedJoint = [&](const std::string &child, ignition::math::Pose3d pose)
+  const auto addFixedJoint = [&](const std::string &child, gz::math::Pose3d pose)
   {
     auto joint = std::make_shared<urdf::Joint>();
     joint->name = child;
