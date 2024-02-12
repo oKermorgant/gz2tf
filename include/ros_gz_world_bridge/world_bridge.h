@@ -38,7 +38,7 @@ public:
 
     //const auto filename = declare_parameter<std::string>("file", "sydney_regatta.sdf");
     const auto filename = declare_parameter<std::string>("file",
-                                                         "/home/olivier/code/libs/ros2/src/maritime/uuv_gazebo_worlds/worlds/mangalia.world");
+                                                         "/home/olivier/code/aquabot/vrx/install/share/aquabot_gz/models/aquabot_regatta_world/model.sdf");
     auto world = declare_parameter<std::string>("world", "");
     const auto ignored = declare_parameter<std::vector<std::string>>("ignored", {"waves"});
     const auto use_static = declare_parameter("use_static", true);

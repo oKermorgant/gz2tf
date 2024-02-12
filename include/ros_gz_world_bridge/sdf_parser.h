@@ -237,30 +237,44 @@ DynamicModel parseWorldSDF(const std::string &world_xml,
   if(!errors.empty())
     return {};
 
-  if(sdf_dom->WorldCount() != 1)
-  {
-    std::cerr << "Cannot parse world " << std::endl;
-    return {};
-  }
+  const auto has_world{sdf_dom->WorldCount() == 1};
 
-  const auto world{sdf_dom->WorldByIndex(0)};
-  const auto model_count{world->ModelCount()};
+  auto getModel = [&](uint idx) -> const sdf::Model*
+  {
+    if(has_world)
+      return sdf_dom->WorldByIndex(0)->ModelByIndex(idx);
+    else
+      return sdf_dom->Model()->ModelByIndex(idx);
+  };
+
+  const auto model_count = has_world ? sdf_dom->WorldByIndex(0)->ModelCount()
+                                     : sdf_dom->Model()->ModelCount();
+
 
   std::vector<PlacedModel> models;
-  models.reserve(sdf_dom->WorldByIndex(0)->ModelCount());
+  std::vector<std::string> failed;
+  models.reserve(model_count);
   for(size_t m = 0; m < model_count; ++m)
   {
-    auto mod{*world->ModelByIndex(m)};
-    const auto name{mod.Name()};
+    auto mod{getModel(m)};
+    const auto name{mod->Name()};
+
     if(std::any_of(ignored.begin(), ignored.end(), [&name](const auto &ignored)
     {return snake_case(name).find(ignored) != name.npos;}))
+    {
+      failed.push_back(name);
       continue;
-    auto converted{convertModel(*world->ModelByIndex(m))};
+    }
+    auto converted{convertModel(*mod)};
     if(converted.urdf)
     {
       if(!use_static)
         converted.pose.reset();
       models.push_back(converted);
+    }
+    else
+    {
+      failed.push_back(name);
     }
   }
 
@@ -276,7 +290,25 @@ DynamicModel parseWorldSDF(const std::string &world_xml,
     std::cout << std::endl;
   }
 
-  return regroupModels(models, world->Name());
+  if(failed.size())
+  {
+    std::cout << "Could not convert: ";
+    auto first{true};
+    for(auto &name: failed)
+    {
+      if(first)
+        first = false;
+      else
+        std::cout << ", ";
+      std::cout << name;
+    }
+    std::cout << std::endl;
+  }
+
+  if(has_world)
+    return regroupModels(models, sdf_dom->WorldByIndex(0)->Name());
+  else
+    return regroupModels(models, sdf_dom->Model()->Name());
 }
 
 }
