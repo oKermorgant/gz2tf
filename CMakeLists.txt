@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(ros_gz_world_bridge)
+project(gz2tf)
 
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
@@ -65,7 +65,11 @@ set(GZ_MSGS_VERSION_MINOR ${${GZ_TARGET_PREFIX}-msgs${GZ_MSGS_VER}_VERSION_MINOR
 set(GZ_MSGS_VERSION_PATCH ${${GZ_TARGET_PREFIX}-msgs${GZ_MSGS_VER}_VERSION_PATCH})
 set(GZ_MSGS_VERSION_FULL ${GZ_MSGS_VERSION_MAJOR}.${GZ_MSGS_VERSION_MINOR}.${GZ_MSGS_VERSION_PATCH})
 
-ament_auto_add_executable(world_bridge world_bridge.cpp sdformat_urdf/sdformat_urdf/src/sdformat_urdf.cpp)
+ament_auto_add_executable(world_bridge
+                          src/world_bridge.cpp
+                          src/urdf_export.cpp
+                          sdformat_urdf/sdformat_urdf/src/sdformat_urdf.cpp
+                          )
 target_include_directories(world_bridge PRIVATE
     include
     ${GZ_TARGET_PREFIX}/sdformat${SDF_VER}

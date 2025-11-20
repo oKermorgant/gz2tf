@@ -1,5 +1,5 @@
-#ifndef ROS_GZ_WORLD_BRIDGE_SDF_PATHS_H
-#define ROS_GZ_WORLD_BRIDGE_SDF_PATHS_H
+#ifndef GZ2TF_WORLD_BRIDGE_SDF_PATHS_H
+#define GZ2TF_WORLD_BRIDGE_SDF_PATHS_H
 
 #include <string>
 #include <string.h>
@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <iostream>
 
-namespace ros_gz_world_bridge
+namespace gz2tf
 {
 
 namespace sdf_paths

@@ -1,5 +1,5 @@
-#ifndef ROS_GZ_WORLD_BRIDGE
-#define ROS_GZ_WORLD_BRIDGE
+#ifndef GZ2TF_WORLD_BRIDGE
+#define GZ2TF_WORLD_BRIDGE
 
 #include <rclcpp/node.hpp>
 #include <robot_state_publisher/robot_state_publisher.hpp>
@@ -7,7 +7,8 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 
-#include <ros_gz_world_bridge/sdf_parser.h>
+#include <gz2tf/sdf_parser.h>
+#include <gz2tf/urdf_export.h>
 
 #ifdef GZ_FORTRESS
 #include <ignition/msgs/pose_v.pb.h>
@@ -17,7 +18,7 @@
 #include <gz/transport/Node.hh>
 #endif
 
-namespace ros_gz_world_bridge
+namespace gz2tf
 {
 
 class WorldBridge : public rclcpp::Node
@@ -32,69 +33,48 @@ public:
   DynamicModel parseWorld()
   {
     sdf::setFindCallback([&](const std::string &path) -> std::string
-    {
-      return sdf_paths::resolveURI(path);
-    });
+                         {
+                           return sdf_paths::resolveURI(path);
+                         });
 
-    //const auto filename = declare_parameter<std::string>("file", "sydney_regatta.sdf");
-    const auto filename = declare_parameter<std::string>("file",
-                                                         "/home/olivier/code/aquabot/vrx/install/share/aquabot_gz/models/aquabot_regatta_world/model.sdf");
+    auto filename = declare_parameter<std::string>("file", "");
     auto world = declare_parameter<std::string>("world", "");
     const auto ignored = declare_parameter<std::vector<std::string>>("ignored", {"waves"});
-    const auto use_static = declare_parameter("use_static", true);
+    const auto only_static = declare_parameter("only_static", false);
 
     topic_ns = declare_parameter<std::string>("namespace", topic_ns);
 
     if(filename.empty() && world.empty())
     {
-      RCLCPP_ERROR(get_logger(), "No filename and no sdf given, exiting");
-      return {};
+      RCLCPP_WARN(get_logger(), "No filename and no sdf given, getting current world");
+      // get current world
+      filename = "/tmp/gz_world.sdf";
+      std::system("ros2 run simple_launch generate_gz_world /tmp/gz_world.sdf");
     }
 
     if(!filename.empty())
       world = sdf_paths::readWorld(filename);
 
-    return parseWorldSDF(world, ignored, use_static);
+    return parseWorldSDF(world, ignored, only_static);
   }
 
   robot_state_publisher::RobotStatePublisher::SharedPtr
   initRSP(urdf::ModelInterfaceConstSharedPtr model)
   {
-    const auto doc{my_urdf_export::exportURDF(*model)};
-    TiXmlPrinter printer;
+    const auto doc{gz2tf::exportURDF(*model)};
+    tinyxml2::XMLPrinter printer;
     doc->Accept(&printer);
 
     auto rsp_arg{rclcpp::NodeOptions()
-          .arguments({"--ros-args", "-r", "__ns:=" + topic_ns, "-p", "robot_description:=" + printer.Str()})};
+                     .arguments({"--ros-args", "-r", "__ns:=" + topic_ns,
+                                 "-p", std::string("robot_description:=") + printer.CStr()})};
 
     return std::make_shared<robot_state_publisher::RobotStatePublisher>(rsp_arg);
   }
 
   void setupPoseBridge(const LinkMap &links, const std::string &world)
   {
-
-    // publish pose anyway for debug
-    if constexpr(true)
-    {
-      static tf2_ros::TransformBroadcaster br(this);
-      using TransformStamped = geometry_msgs::msg::TransformStamped;
-      static TransformStamped tr;
-      tr.header.frame_id = "world";
-
-      static auto tf_pub = create_wall_timer(std::chrono::seconds(1), [&]()
-      {
-        tr.header.stamp = get_clock()->now();
-        for(auto &[_,link]: links)
-        {
-          tr.child_frame_id = link;
-          br.sendTransform(tr);
-        }
-      });
-
-      return;
-    }
-
-    const auto use_tf = declare_parameter<bool>("use_tf", false);
+    const auto use_tf = declare_parameter<bool>("use_tf", true);
     static gz::transport::Node gz_node;
 
     std::function<void(const gz::msgs::Pose_V &)> sub_cb;

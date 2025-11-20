@@ -1,15 +1,15 @@
 #include <rclcpp/rclcpp.hpp>
-#include <ros_gz_world_bridge/world_bridge.h>
+#include <gz2tf/world_bridge.h>
 #include <rclcpp/executors/single_threaded_executor.hpp>
 
-using namespace ros_gz_world_bridge;
+using namespace gz2tf;
 
 // boilerplate main
 int main(int argc, char** argv)
 {
   rclcpp::init(argc, argv);  
 
-  auto bridge = std::make_shared<ros_gz_world_bridge::WorldBridge>();
+  auto bridge = std::make_shared<gz2tf::WorldBridge>();
   const auto &[urdf, links, world] = bridge->parseWorld(); {}
 
   if(!urdf)

@@ -1,11 +1,11 @@
-#ifndef ROS_GZ_WORLD_BRIDGE_SDF_PARSER_H
-#define ROS_GZ_WORLD_BRIDGE_SDF_PARSER_H
+#ifndef GZ2TF_WORLD_BRIDGE_SDF_PARSER_H
+#define GZ2TF_WORLD_BRIDGE_SDF_PARSER_H
 
 #include <sdf/Root.hh>
 #include <sdf/World.hh>
 #include <sdf/Link.hh>
-#include <ros_gz_world_bridge/urdf_export.h>
-#include <ros_gz_world_bridge/sdf_paths.h>
+#include <urdf/model.h>
+#include <gz2tf/sdf_paths.h>
 #include <sdformat_urdf/sdformat_urdf.hpp>
 #include <optional>
 
@@ -17,13 +17,14 @@ namespace gz = ignition;
 #endif
 
 
-namespace ros_gz_world_bridge
+namespace gz2tf
 {
 
 struct PlacedModel
 {
   urdf::ModelInterfaceConstSharedPtr urdf;
   std::optional<gz::math::Pose3d> pose;
+  inline auto isStatic() const {return pose.has_value();}
 };
 
 
@@ -60,7 +61,7 @@ void resolveMeshes(std::vector<std::shared_ptr<LinkElem>> &elems,
     if(geom->type == urdf::Geometry::MESH)
     {
       if(std::find_if(previous.begin(), previous.end(),
-                      [&](auto prev){return is_Same(prev, elem);}) != previous.end())
+                       [&](auto prev){return is_Same(prev, elem);}) != previous.end())
       {
         to_remove.push_back(elem);
         continue;
@@ -123,16 +124,20 @@ PlacedModel convertModel(sdf::Model sdf_model)
   }
 
   // adapt meshes that are relative to this model
-  const auto sdf_root{std::filesystem::path(sdf_paths::resolveURI(sdf_model.Uri())).parent_path()};
-  for(auto [_,link]: converted.urdf->links_)
+  if(!sdf_model.Uri().empty())
   {
-    resolveMeshes(link->visual_array, sdf_root);
-    resolveMeshes(link->collision_array, sdf_root);
+    const auto sdf_root{std::filesystem::path(sdf_paths::resolveURI(sdf_model.Uri())).parent_path()};
+    for(auto [_,link]: converted.urdf->links_)
+    {
+      resolveMeshes(link->visual_array, sdf_root);
+      resolveMeshes(link->collision_array, sdf_root);
+    }
   }
   return converted;
 }
 
-DynamicModel regroupModels(const std::vector<PlacedModel> &models, const std::string &world_name)
+DynamicModel regroupModels(const std::vector<PlacedModel> &models,
+                           const std::string &world_name, bool only_static)
 {
   if(models.empty())
     return {};
@@ -185,10 +190,19 @@ DynamicModel regroupModels(const std::vector<PlacedModel> &models, const std::st
     // change model name to root link one
     const auto prefix{snake_case(model.urdf->getName()) + "_"};
     const auto world_joint{prefix + model.urdf->root_link_->name};
-    if(model.pose.has_value())
+    if(model.isStatic())
       addFixedJoint(world_joint, model.pose.value());
     else
       links[model.urdf->getName()] = addMovingJoint(world_joint);
+
+    if(!model.isStatic() && only_static)
+    {
+      // only consider root link for ground truth
+      const auto name{model.urdf->root_link_->name};
+      auto new_link = urdf->links_[prefix+name] = std::make_shared<urdf::Link>();
+      new_link->name = prefix+name;
+      continue;
+    }
 
     // transfert all materials
     for(auto [name,mat]: model.urdf->materials_)
@@ -230,7 +244,7 @@ DynamicModel regroupModels(const std::vector<PlacedModel> &models, const std::st
 
 DynamicModel parseWorldSDF(const std::string &world_xml,
                            const std::vector<std::string> &ignored,
-                           bool use_static)
+                           bool only_static)
 {
   auto sdf_dom = std::make_shared<sdf::Root>();
   auto errors = sdf_dom->LoadSdfString(world_xml);
@@ -252,7 +266,7 @@ DynamicModel parseWorldSDF(const std::string &world_xml,
 
 
   std::vector<PlacedModel> models;
-  std::vector<std::string> failed;
+  std::vector<std::string> failed, seen_ignored;
   models.reserve(model_count);
   for(size_t m = 0; m < model_count; ++m)
   {
@@ -260,16 +274,16 @@ DynamicModel parseWorldSDF(const std::string &world_xml,
     const auto name{mod->Name()};
 
     if(std::any_of(ignored.begin(), ignored.end(), [&name](const auto &ignored)
-    {return snake_case(name).find(ignored) != name.npos;}))
+                    {return snake_case(name).find(ignored) != name.npos;}))
     {
-      failed.push_back(name);
+      seen_ignored.push_back(name);
       continue;
     }
     auto converted{convertModel(*mod)};
     if(converted.urdf)
     {
-      if(!use_static)
-        converted.pose.reset();
+      //if(!use_static)
+      //  converted.pose.reset();
       models.push_back(converted);
     }
     else
@@ -290,28 +304,33 @@ DynamicModel parseWorldSDF(const std::string &world_xml,
     std::cout << std::endl;
   }
 
-  if(failed.size())
-  {
-    std::cout << "Could not convert: ";
-    auto first{true};
-    for(auto &name: failed)
+  const auto printVec{[](const std::string &msg, const std::vector<std::string> &v)
     {
-      if(first)
-        first = false;
-      else
-        std::cout << ", ";
-      std::cout << name;
-    }
-    std::cout << std::endl;
-  }
+    if(v.empty())
+      return;
+    std::cout << msg << ": ";
+      auto first{true};
+      for(auto &name: v)
+      {
+        if(first)
+          first = false;
+        else
+          std::cout << ", ";
+        std::cout << name;
+      }
+      std::cout << std::endl;
+  }};
+
+  printVec("Could not convert", failed);
+  printVec("Ignored", seen_ignored);
 
   if(has_world)
-    return regroupModels(models, sdf_dom->WorldByIndex(0)->Name());
+    return regroupModels(models, sdf_dom->WorldByIndex(0)->Name(), only_static);
   else
-    return regroupModels(models, sdf_dom->Model()->Name());
+    return regroupModels(models, sdf_dom->Model()->Name(), only_static);
 }
 
 }
 
 
-#endif // ROS_GZ_WORLD_BRIDGE_SDF_PARSER_H
+#endif // GZ2TF_WORLD_BRIDGE_SDF_PARSER_H

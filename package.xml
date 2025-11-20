@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format2.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>ros_gz_world_bridge</name>
+  <name>gz2tf</name>
   <version>0.0.1</version>
   <description>Publish world mesh positions from Gazebo simulation</description>
   <maintainer email="olivier.kermorgant@ec-nantes.fr">Olivier Kermorgant</maintainer>
@@ -27,6 +27,8 @@
   <build_depend>pluginlib</build_depend>
   <build_depend>rcutils</build_depend>
   <build_depend>tinyxml2_vendor</build_depend>
+
+  <exec_depend>simple_launch</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
